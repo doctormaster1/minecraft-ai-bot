@@ -1,10 +1,10 @@
 {
   "username": "vardibileAiBot2",
-  "password": "1001100a02",
+  "password": "",
   "version": "1.16.5",
   "host": "play.RebornCraft.pw",
   "message": {
-    "login": "/login 1001100a02",
+    "login": "/login ",
     "rebornskyblock": "/rebornskyblock",
     "msg": "/msg"
   }
