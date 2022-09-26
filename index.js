@@ -1,13 +1,18 @@
+const path = require("path");
+const fs = require("fs").promises;
+
 const delay = require("delay");
 const chalk = require("chalk");
+
 const mineflayer = require("mineflayer");
 const autoeat = require("mineflayer-auto-eat");
-const vec3 = require("vec3");
-const {
-  pathfinder,
-  Movements,
-  goals: { GoalNear },
-} = require("mineflayer-pathfinder");
+
+const { builder, Build } = require("mineflayer-builder");
+const { Schematic } = require("prismarine-schematic");
+
+const pathfinder = require("mineflayer-pathfinder").pathfinder;
+const Movements = require("mineflayer-pathfinder").Movements;
+const { GoalBlock } = require("mineflayer-pathfinder").goals;
 
 const config = require("./config.json");
 const msg = config.message;
@@ -15,48 +20,45 @@ const botConfig = {
   host: config.host,
   username: config.username,
   version: config.version,
+  port: config.port,
 };
 
+const mcData = require("minecraft-data")(config.version);
 const bot = mineflayer.createBot(botConfig);
+
 bot.loadPlugin(pathfinder);
+bot.loadPlugin(builder);
 bot.loadPlugin(autoeat);
 
 bot.on("login", async () => {
   console.log(chalk.bgRed("bot is connected"));
+
   await delay(15000);
-  console.log(chalk.bgYellow(msg.login));
   bot.chat(msg.login);
+
   await delay(5000);
-  console.log(chalk.bgYellow(msg.rebornskyblock));
-  bot.chat(msg.rebornskyblock);
+  bot.chat(msg.skyblock);
 });
 
 bot.once("spawn", () => {
-  bot.autoEat.options = {
-    priority: "saturation",
-    startAt: 14,
-    eatingTimeout: 3,
-  };
+  bot.autoEat.options.priority = "foodPoints";
+  bot.autoEat.options.bannedFood = [
+    "golden_apple",
+    "enchanted_golden_apple",
+    "rotten_flesh",
+  ];
+  bot.autoEat.options.eatingTimeout = 3;
 });
 
 bot.on("chat", async (username, message) => {
   console.log(chalk.bgMagenta(username));
-  const loopMsgController = false;
 
-  if (
-    username === "vardibile" ||
-    username === "MrPatates" ||
-    username === "brktrz1" ||
-    username === "Erdoli"
-  ) {
+  if (username === config.author) {
     const realMsg = message.split("»");
     const realRealMsg = realMsg[1].split("-");
     const cmd = realRealMsg[0];
     const rMsg = realRealMsg[1];
-    //console.log(chalk.bgBlue(`[${username}] - ${realMsg[1]}`));
-    console.log(chalk.bgBlue(`[${cmd}] - ${rMsg}`));
     const returnMsg = `${msg.msg}${rMsg}`;
-    //console.log(chalk.bgGreen(`[MSG] ${returnMsg}`));
 
     switch (cmd) {
       case " say":
@@ -65,80 +67,90 @@ bot.on("chat", async (username, message) => {
       case " msg":
         bot.chat(returnMsg);
         break;
-      case " ileri":
+      case " forward":
         var delayTime = parseInt(rMsg);
         bot.setControlState("forward", true);
         await delay(delayTime);
         bot.setControlState("forward", false);
         break;
-      case " geri":
+      case " back":
         var delayTime = parseInt(rMsg);
         bot.setControlState("back", true);
         await delay(delayTime);
         bot.setControlState("back", false);
         break;
-      case " sola":
+      case " left":
         var delayTime = parseInt(rMsg);
         bot.setControlState("left", true);
         await delay(delayTime);
         bot.setControlState("left", false);
         break;
-      case " sağa":
+      case " right":
         var delayTime = parseInt(rMsg);
         bot.setControlState("right", true);
         await delay(delayTime);
         bot.setControlState("right", false);
         break;
-      case " zıpla":
+      case " jump":
         bot.setControlState("jump", true);
         bot.setControlState("jump", false);
         break;
       case " build":
         build();
         break;
+      case " come":
+        come(username);
+        break;
       default:
-        bot.chat("Olmadı be ustam");
+        bot.chat("I don't understand");
         break;
     }
-
-    //bot.chat(returnMsg);
   } else if (
-    username === "RebornCraft" &&
-    message ===
-      "Lütfen sohbeti kullanmadan önce hareket edin; bu spam botları önlemek içindir."
+    username === config.servername &&
+    message === config.servermassage
   ) {
-    console.log(chalk.bgRed("log"));
+    // It is for the bot to react to certain server messages. Make changes according to the server you are playing on.
+    console.log(chalk.bgRed(message));
     bot.setControlState("forward", true);
     await delay(100);
     bot.setControlState("forward", false);
   }
 });
 
-const build = () => {
-  const referenceBlock = bot.blockAt(bot.entity.position.offset(0, -1, 0));
-  const jumpY = Math.floor(bot.entity.position.y) + 1.0;
-  bot.setControlState("jump", true);
-  bot.on("move", placeIfHighEnough);
+bot.on("autoeat_started", () => {
+  console.log("Auto Eat started!");
+});
 
-  let tryCount = 0;
+bot.on("autoeat_stopped", () => {
+  console.log("Auto Eat stopped!");
+});
 
-  async function placeIfHighEnough() {
-    if (bot.entity.position.y > jumpY) {
-      try {
-        await bot.placeBlock(referenceBlock, vec3(0, 1, 0));
-        bot.setControlState("jump", false);
-        bot.removeListener("move", placeIfHighEnough);
-        console.log(chalk.bgMagenta("Başarıyla Tamamlandı"));
-      } catch (err) {
-        tryCount++;
-        if (tryCount > 10) {
-          console.log(chalk.red(err.message));
-          bot.setControlState("jump", false);
-          bot.removeListener("move", placeIfHighEnough);
-        }
-      }
-    }
+bot.on("health", () => {
+  if (bot.food <= 14) bot.autoEat.disable();
+  else bot.autoEat.enable();
+});
+
+const come = (username) => {
+  const defaultMove = new Movements(bot, mcData);
+  const target = bot.players[username] || null;
+  const p = target.entity.position;
+
+  bot.pathfinder.setMovements(defaultMove);
+  bot.pathfinder.setGoal(new GoalBlock(p.x, p.y, p.z));
+};
+
+const build = async () => {
+  const schematic = await Schematic.read(
+    await fs.readFile(path.resolve(__dirname, "./schematics/testSchem.schem")),
+    bot.version
+  );
+  while (!bot.entity.onGround) {
+    await delay(100);
   }
+  const at = bot.entity.position.floored();
+  console.log("Building at ", at);
+  const build = new Build(schematic, bot.world, at);
+  bot.builder.build(build);
 };
 
 bot.on("message", (message) => {

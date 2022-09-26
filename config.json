@@ -1,11 +1,15 @@
 {
-  "username": "vardibileAiBot2",
-  "password": "",
-  "version": "1.16.5",
-  "host": "play.RebornCraft.pw",
+  "author": "author",
+  "username": "bot username",
+  "password": "bot pass",
+  "version": "minecraft version",
+  "host": "localhost",
+  "port": 58319,
+  "servername": "servername",
+  "servermassage": "server massage",
   "message": {
     "login": "/login ",
-    "rebornskyblock": "/rebornskyblock",
+    "skyblock": "/rebornskyblock",
     "msg": "/msg"
   }
 }

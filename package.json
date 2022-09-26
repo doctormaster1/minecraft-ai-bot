@@ -18,6 +18,8 @@
     "minecraft-data": "^3.12.0",
     "mineflayer": "^4.4.0",
     "mineflayer-auto-eat": "^2.3.3",
-    "mineflayer-pathfinder": "^2.3.3"
+    "mineflayer-builder": "^1.0.1",
+    "mineflayer-pathfinder": "^2.3.3",
+    "prismarine-schematic": "^1.2.3"
   }
 }
